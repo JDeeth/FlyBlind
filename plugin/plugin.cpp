@@ -12,38 +12,52 @@
 #include <command.h>
 
 class FlyBlind {
-public:
-  FlyBlind() {
-    XPLMRegisterDrawCallback(cb, xplm_Phase_Airports, 1, this);
-    XPLMRegisterDrawCallback(cb, xplm_Phase_Terrain, 1, this);
-    XPLMRegisterDrawCallback(cb, xplm_Phase_Vectors, 1, this);
-  }
-  ~FlyBlind() {
-    XPLMUnregisterDrawCallback(cb, xplm_Phase_Airports, 1, this);
-    XPLMUnregisterDrawCallback(cb, xplm_Phase_Terrain, 1, this);
-    XPLMUnregisterDrawCallback(cb, xplm_Phase_Vectors, 1, this);
-  }
-  XPLMDrawCallback_f cb{[](int, int, void* us_ptr) {
-    auto us = reinterpret_cast<FlyBlind*>(us_ptr);
-    if (us->draw)
-      return 1;
-    glClearColor(
-        us->outside_r * 0.75f, us->outside_g * 0.75f, us->outside_b * 0.75f, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    return 0;
-  }};
-  bool draw{true};
-  PPL::Command cmd{"Albair/FlyBlind/toggle",
-                   "Make the world go away",
-                   [this](PPL::Command::Phase phase) {
-                     if (phase == PPL::Command::Phase::Begin)
-                       draw = !draw;
-                     return PPL::Command::Outcome::Halt;
-                   }};
-  PPL::DataRef<float> outside_r{"sim/graphics/misc/outside_light_level_r"};
-  PPL::DataRef<float> outside_g{"sim/graphics/misc/outside_light_level_g"};
-  PPL::DataRef<float> outside_b{"sim/graphics/misc/outside_light_level_b"};
+  static PPL::DataRef<float> outside_r_;
+  static PPL::DataRef<float> outside_g_;
+  static PPL::DataRef<float> outside_b_;
+  static int clear_(int, int, void*);
+
+  class MakeBlank {
+  public:
+    MakeBlank() {
+      XPLMRegisterDrawCallback(clear_, xplm_Phase_Airports, 1, nullptr);
+      XPLMRegisterDrawCallback(clear_, xplm_Phase_Terrain, 1, nullptr);
+      XPLMRegisterDrawCallback(clear_, xplm_Phase_Vectors, 1, nullptr);
+    }
+    ~MakeBlank() {
+      XPLMUnregisterDrawCallback(clear_, xplm_Phase_Airports, 1, nullptr);
+      XPLMUnregisterDrawCallback(clear_, xplm_Phase_Terrain, 1, nullptr);
+      XPLMUnregisterDrawCallback(clear_, xplm_Phase_Vectors, 1, nullptr);
+    }
+  };
+
+  std::unique_ptr<MakeBlank> blank_{nullptr};
+
+  PPL::Command toggle_{"Albair/FlyBlind/toggle",
+                       "Make the world go away",
+                       [this](PPL::Command::Phase phase) {
+                         if (phase == PPL::Command::Phase::Begin) {
+                           if (blank_ == nullptr)
+                             blank_ = std::make_unique<MakeBlank>();
+                           else
+                             blank_.reset();
+                         }
+                         return PPL::Command::Outcome::Halt;
+                       }};
 };
+
+PPL::DataRef<float> FlyBlind::outside_r_{
+    "sim/graphics/misc/outside_light_level_r"};
+PPL::DataRef<float> FlyBlind::outside_g_{
+    "sim/graphics/misc/outside_light_level_g"};
+PPL::DataRef<float> FlyBlind::outside_b_{
+    "sim/graphics/misc/outside_light_level_b"};
+
+int FlyBlind::clear_(int, int, void*) {
+  glClearColor(outside_r_ * 0.75f, outside_g_ * 0.75f, outside_b_ * 0.75f, 1);
+  glClear(GL_COLOR_BUFFER_BIT);
+  return 0;
+}
 
 static std::unique_ptr<FlyBlind> flyblind;
 
@@ -55,6 +69,7 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
   strcpy(out_desc, desc.c_str());
 
   flyblind = std::make_unique<FlyBlind>();
+
   return 1;
 }
 
