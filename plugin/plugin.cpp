@@ -8,6 +8,7 @@
 #include <XPLMGraphics.h>
 #include <XPLMDisplay.h>
 
+#include <dataref.h>
 #include <command.h>
 
 class FlyBlind {
@@ -22,10 +23,12 @@ public:
     XPLMUnregisterDrawCallback(cb, xplm_Phase_Terrain, 1, this);
     XPLMUnregisterDrawCallback(cb, xplm_Phase_Vectors, 1, this);
   }
-  XPLMDrawCallback_f cb{[](int, int, void* us) {
-    if (reinterpret_cast<FlyBlind*>(us)->draw)
+  XPLMDrawCallback_f cb{[](int, int, void* us_ptr) {
+    auto us = reinterpret_cast<FlyBlind*>(us_ptr);
+    if (us->draw)
       return 1;
-    glClearColor(0.15f, 0.15f, 0.17f, 1);
+    glClearColor(
+        us->outside_r * 0.75f, us->outside_g * 0.75f, us->outside_b * 0.75f, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     return 0;
   }};
@@ -37,6 +40,9 @@ public:
                        draw = !draw;
                      return PPL::Command::Outcome::Halt;
                    }};
+  PPL::DataRef<float> outside_r{"sim/graphics/misc/outside_light_level_r"};
+  PPL::DataRef<float> outside_g{"sim/graphics/misc/outside_light_level_g"};
+  PPL::DataRef<float> outside_b{"sim/graphics/misc/outside_light_level_b"};
 };
 
 static std::unique_ptr<FlyBlind> flyblind;
