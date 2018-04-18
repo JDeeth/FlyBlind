@@ -1,0 +1,5 @@
+build*
+ref/
+*.pro.user*
+*.autosave
+*.ods#
