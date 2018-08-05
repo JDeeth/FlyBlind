@@ -10,6 +10,8 @@ When the command is triggered, the plugin registers drawing callbacks for most
 of X-Plane's scenery rendering phases. The callback renders a solid colour
 instead of scenery.
 
+The command is `Albair/FlyBlind/toggle`
+
 Lights are still rendered, including the sun at some angles. Disabling the
 drawing phase where they're rendered also causes visual glitches.
 
